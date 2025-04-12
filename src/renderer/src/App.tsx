@@ -3,17 +3,33 @@ import electronLogo from './assets/electron.svg'
 import './assets/main.css'
 import Versions from './components/Versions'
 
+// Define interfaces for our data structures
+interface User {
+  username: string
+  password: string
+  role: 'admin' | 'user'
+}
+
+interface Process {
+  pid: number
+  name: string
+  priority: number
+  cpu: number
+  memory: number
+  path: string
+}
+
 function App(): JSX.Element {
   const [username, setUsername] = React.useState('')
   const [password, setPassword] = React.useState('')
   const [isLoggedIn, setIsLoggedIn] = React.useState(false)
-  const [currentUser, setCurrentUser] = React.useState(null)
+  const [currentUser, setCurrentUser] = React.useState<User | null>(null)
   const [error, setError] = React.useState('')
-  const [processes, setProcesses] = React.useState([])
-  const [selectedProcess, setSelectedProcess] = React.useState(null)
+  const [processes, setProcesses] = React.useState<Process[]>([])
+  const [selectedProcess, setSelectedProcess] = React.useState<Process | null>(null)
   const [newPriority, setNewPriority] = React.useState('')
 
-  const users = [
+  const users: User[] = [
     { username: 'admin', password: '123', role: 'admin' },
     { username: 'user', password: '123', role: 'user' }
   ]
@@ -29,12 +45,12 @@ function App(): JSX.Element {
           setProcesses(result)
         } else {
           console.error('Полученные данные не являются массивом:', result)
-          setProcesses([]) 
+          setProcesses([])
         }
       })
       .catch((error) => {
         console.error('Ошибка при получении процессов:', error)
-        setProcesses([]) 
+        setProcesses([])
       })
   }
 
@@ -44,6 +60,7 @@ function App(): JSX.Element {
       const interval = setInterval(fetchProcesses, 5000)
       return () => clearInterval(interval)
     }
+    return undefined // Explicit return for the case when isLoggedIn is false
   }, [isLoggedIn])
 
   const handleLogin = () => {
@@ -67,14 +84,18 @@ function App(): JSX.Element {
     setSelectedProcess(null)
   }
 
-  const handleProcessSelect = (process) => {
+  const handleProcessSelect = (process: Process): void => {
     setSelectedProcess(process)
     setNewPriority(process.priority.toString())
   }
 
-  const handlePriorityChange = () => {
-    if (currentUser.role !== 'admin') {
+  const handlePriorityChange = (): void => {
+    if (!currentUser || currentUser.role !== 'admin') {
       alert('У вас нет прав для изменения приоритета процесса')
+      return
+    }
+
+    if (!selectedProcess) {
       return
     }
 
@@ -92,7 +113,7 @@ function App(): JSX.Element {
         }
       })
   }
- 
+
   return (
     <>
       <div className="container">
@@ -127,7 +148,7 @@ function App(): JSX.Element {
           <div className="system-monitor">
             <div className="user-info">
               <h2>
-                Пользователь: {currentUser.username} (Роль: {currentUser.role})
+                Пользователь: {currentUser?.username} (Роль: {currentUser?.role})
               </h2>
               <button className="logout-btn" onClick={handleLogout}>
                 Выйти
@@ -150,7 +171,7 @@ function App(): JSX.Element {
                       </tr>
                     </thead>
                     <tbody>
-                      {processes.map((process) => (
+                      {processes.map((process: Process) => (
                         <tr
                           key={process.pid}
                           onClick={() => handleProcessSelect(process)}
@@ -187,13 +208,14 @@ function App(): JSX.Element {
                     %
                   </p>
                   <p>
-                    <strong>Память:</strong>{selectedProcess.memory}%
+                    <strong>Память:</strong>
+                    {selectedProcess.memory}%
                   </p>
                   <p>
                     <strong>Путь:</strong> {selectedProcess.path}
                   </p>
 
-                  {currentUser.role === 'admin' && (
+                  {selectedProcess && currentUser?.role === 'admin' && (
                     <div className="admin-controls">
                       <h4>Управление процессом</h4>
                       <div className="form-group">
@@ -230,3 +252,18 @@ function App(): JSX.Element {
 }
 
 export default App
+
+// You may also need to declare the electron API in a ambient declaration file
+// or add this to the file:
+declare global {
+  interface Window {
+    electron: {
+      ipcRenderer: {
+        invoke(channel: string, ...args: any[]): Promise<any>
+      }
+      process?: {
+        versions: Record<string, string>
+      }
+    }
+  }
+}

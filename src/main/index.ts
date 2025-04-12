@@ -5,9 +5,6 @@ import ps from 'ps-node'
 import si from 'systeminformation'
 import icon from '../../resources/icon.png?asset'
 
-let lastCPUUsage = process.getCPUUsage()
-let lastTime = Date.now()
-
 function createWindow(): void {
   const mainWindow = new BrowserWindow({
     width: 900,
@@ -47,12 +44,6 @@ ipcMain.handle('get-processes', async () => {
     console.log('Количество1 процессов:', processData.list.length)
 
     return processData.list.map((proc) => {
-      // Конвертируем RSS память в MB
-      const memRssMB = (proc.memRss || 0) / 1024 / 1024
-
-      // Рассчитываем процент от общей памяти
-      const memUsagePercent = (memRssMB / (memInfo.total / 1024 / 1024)) * 100
-
       return {
         pid: proc.pid,
         name: proc.name,
